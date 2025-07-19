@@ -113,4 +113,27 @@
 
   function log(msg) {
     const logBox = document.getElementById('event-log');
-    const time = new Date().toLocaleTimeString
+    const time = new Date().toLocaleTimeString();
+    logBox.innerHTML += `<div>> [${time}] ${msg}</div>`;
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  setInterval(() => {
+    const now = new Date();
+    document.getElementById('status-time').textContent = `System Online: ${now.toLocaleTimeString()}`;
+  }, 1000);
+
+  // Add some major US bases
+  addBase(35.139, -79.006, 'Fort Liberty', '★', 'Army');
+  addBase(31.1346, -97.7800, 'Fort Cavazos', '★', 'Army');
+  addBase(37.9, -85.956, 'Fort Knox', '★', 'Army');
+  addBase(39.108, -76.745, 'Fort Meade', '★', 'Army / NSA');
+  addBase(33.3, -117.3, 'Camp Pendleton', '🪖', 'Marines');
+  addBase(32.6831, -117.16, 'MCAS Miramar', '✈', 'Marines / Navy');
+  addBase(39.8262, -84.0611, 'Wright-Patterson AFB', '✈', 'Air Force');
+  addBase(36.945, -76.305, 'Naval Station Norfolk', '⚓', 'Navy');
+  addBase(47.11, -122.57, 'Lewis–McChord', '★', 'Army / Air Force');
+  addBase(38.876, -77.0164, 'The Pentagon', '★', 'DoD HQ');
+</script>
+</body>
+</html>
