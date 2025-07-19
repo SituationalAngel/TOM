@@ -12,10 +12,7 @@
       background: #000;
       font-family: monospace;
     }
-
-    .leaflet-container {
-      background: #111;
-    }
+    .leaflet-container { background: #111; }
 
     .military-label {
       font-size: 12px;
@@ -99,21 +96,18 @@
     zoomControl: true
   });
 
-  // Dark Matter base map
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© CartoDB | OpenStreetMap',
     subdomains: 'abcd',
     maxZoom: 19
   }).addTo(map);
 
-  // Radar layer (optional)
   const radarLayer = L.tileLayer('https://tilecache.rainviewer.com/v2/radar/nowcast/0/512/{z}/{x}/{y}/2/1_1.png', {
     attribution: 'RainViewer',
     opacity: 0.3,
     zIndex: 999
   }).addTo(map);
 
-  // Home zoom button
   const homeCoords = [39.5, -98.35];
   L.control({ position: 'topright' }).onAdd = function() {
     const div = L.DomUtil.create('div', 'zoom-home');
@@ -147,17 +141,28 @@
     document.getElementById('status-time').textContent = `System Online: ${now.toLocaleTimeString()}`;
   }, 1000);
 
-  // Real US military bases
-  addBase(35.139, -79.006, 'Fort Liberty', '★', 'Army');
-  addBase(31.1346, -97.7800, 'Fort Cavazos', '★', 'Army');
-  addBase(37.9, -85.956, 'Fort Knox', '★', 'Army');
-  addBase(39.108, -76.745, 'Fort Meade', '★', 'Army / NSA');
-  addBase(33.3, -117.3, 'Camp Pendleton', '🪖', 'Marines');
-  addBase(32.6831, -117.16, 'MCAS Miramar', '✈', 'Marines / Navy');
-  addBase(39.8262, -84.0611, 'Wright-Patterson AFB', '✈', 'Air Force');
-  addBase(36.945, -76.305, 'Naval Station Norfolk', '⚓', 'Navy');
-  addBase(47.11, -122.57, 'Lewis–McChord', '★', 'Army / Air Force');
-  addBase(38.876, -77.0164, 'The Pentagon', '★', 'DoD HQ');
+  // Real military installations (more added)
+  const bases = [
+    [35.139, -79.006, 'Fort Liberty', '★', 'Army'],
+    [31.1346, -97.7800, 'Fort Cavazos', '★', 'Army'],
+    [37.9, -85.956, 'Fort Knox', '★', 'Army'],
+    [39.108, -76.745, 'Fort Meade', '★', 'Army / NSA'],
+    [33.3, -117.3, 'Camp Pendleton', '🪖', 'Marines'],
+    [32.6831, -117.16, 'MCAS Miramar', '✈', 'Marines / Navy'],
+    [39.8262, -84.0611, 'Wright-Patterson AFB', '✈', 'Air Force'],
+    [36.945, -76.305, 'Naval Station Norfolk', '⚓', 'Navy'],
+    [47.11, -122.57, 'Lewis–McChord', '★', 'Army / Air Force'],
+    [38.876, -77.0164, 'The Pentagon', '★', 'DoD HQ'],
+    [30.4213, -87.2169, 'NAS Pensacola', '⚓', 'Navy'],
+    [32.3801, -86.345, 'Maxwell AFB', '✈', 'Air Force'],
+    [29.3572, -98.5811, 'Lackland AFB', '✈', 'Air Force'],
+    [34.629, -86.684, 'Redstone Arsenal', '⚙', 'Army / DoD'],
+    [38.4106, -75.0, 'Wallops Flight Facility', '🚀', 'NASA / DoD'],
+    [37.1319, -76.4922, 'Langley AFB', '✈', 'Air Force'],
+    [35.686975, -117.686403, 'China Lake', '💣', 'Navy / Weapons Dev']
+  ];
+
+  bases.forEach(([lat, lng, name, symbol, branch]) => addBase(lat, lng, name, symbol, branch));
 </script>
 </body>
 </html>
