@@ -1,28 +1,63 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <title>U.S. Military Base Map</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+  <meta charset="utf-8" />
+  <title>Military Base Map - Official Code Names & Regions</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css" />
   <style>
-    html, body, #map { height: 100%; margin: 0; }
-    .leaflet-container { font-family: monospace; background: #1a1a1a; }
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+      background: #1a1a1a;
+      font-family: monospace;
+      color: #0ff;
+    }
+
+    .leaflet-container {
+      background: #1a1a1a;
+    }
+
     .military-label {
       font-size: 12px;
       background: rgba(0,0,0,0.6);
       padding: 2px 4px;
-      border-radius: 3px;
-      color: #fff;
+      color: #0ff;
+      white-space: nowrap;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      user-select: none;
+      /* No border-radius */
     }
+
     .zoom-home {
       background: rgba(0, 0, 0, 0.8);
-      color: white;
+      color: #0ff;
       font-size: 16px;
       line-height: 20px;
       padding: 4px;
-      border-radius: 4px;
       cursor: pointer;
+      user-select: none;
+      /* No border-radius */
+    }
+
+    /* Remove rounded corners & border from Leaflet popups */
+    .leaflet-popup-content-wrapper {
+      background: rgba(0, 0, 0, 0.85);
+      color: #0ff;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 8px;
+      /* NO border-radius */
+      border-radius: 0 !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+
+    .leaflet-popup-tip {
+      display: none; /* remove popup arrow for cleaner look */
     }
   </style>
 </head>
@@ -32,54 +67,137 @@
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
   <script>
     const map = L.map('map', {
-      center: [39.5, -98.35], // Geographic center of contiguous U.S.
-      zoom: 5,
+      center: [39.5, -98.35], // Center US
+      zoom: 3,
       zoomControl: true
     });
 
+    // Dark base map
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; CARTO',
       subdomains: 'abcd',
       maxZoom: 19
     }).addTo(map);
 
-    // Zoom home button
-    const homeCoords = [39.5, -98.35];
-    const zoomHome = L.control({ position: 'topright' });
-    zoomHome.onAdd = function() {
-      const div = L.DomUtil.create('div', 'zoom-home');
-      div.innerHTML = '🏠';
-      div.title = 'Reset View';
-      div.onclick = () => map.setView(homeCoords, 5);
-      return div;
+    // Helper: color by branch
+    const branchColors = {
+      'Army': '#00ffff',
+      'Marines': '#ff4500',
+      'Air Force': '#1e90ff',
+      'Navy': '#ffa500',
+      'Special Ops': '#32cd32',
+      'Classified': '#ff69b4',
+      'Joint': '#00ffff'
     };
-    zoomHome.addTo(map);
 
-    // Add base with a custom symbol
-    function addBase(lat, lng, name, symbol, branch) {
-      L.marker([lat, lng], {
+    // Use plane emoji for all bases
+    const baseSymbol = '✈';
+
+    // Add base with official code name and popup history
+    function addBase(lat, lng, codeName, branch, history) {
+      const color = branchColors[branch] || '#ccc';
+
+      const marker = L.marker([lat, lng], {
         icon: L.divIcon({
           className: 'military-label',
-          html: `<span>${symbol} ${name}<br><span style="font-size:10px;opacity:0.6">${branch}</span></span>`,
-          iconSize: [100, 30],
-          iconAnchor: [50, 15]
+          html: `<span style="color:${color};">${baseSymbol} ${codeName}</span>`,
+          iconSize: [110, 30],
+          iconAnchor: [55, 15]
         })
       }).addTo(map);
+
+      const popupContent = `<strong>${codeName}</strong><br><em>${branch}</em><br><br>${history}`;
+
+      marker.bindPopup(popupContent);
     }
 
-    // Real U.S. Military Bases (simplified, across all major branches)
-    addBase(35.139, -79.006, 'Fort Liberty', '★', 'Army'); // Formerly Fort Bragg
-    addBase(31.1346, -97.7800, 'Fort Cavazos', '★', 'Army'); // Formerly Fort Hood
-    addBase(37.9, -85.956, 'Fort Knox', '★', 'Army');
-    addBase(39.108, -76.745, 'Fort Meade', '★', 'Army / NSA');
-    addBase(33.3, -117.3, 'Camp Pendleton', '🪖', 'Marines');
-    addBase(32.6831, -117.16, 'MCAS Miramar', '✈', 'Marines / Navy');
-    addBase(39.8262, -84.0611, 'Wright-Patterson AFB', '✈', 'Air Force');
-    addBase(38.8106, -77.1203, 'Joint Base Anacostia–Bolling', '✈', 'Air Force / Navy');
-    addBase(36.945, -76.305, 'Naval Station Norfolk', '⚓', 'Navy');
-    addBase(47.11, -122.57, 'Joint Base Lewis–McChord', '★', 'Army / Air Force');
-    addBase(38.876, -77.0164, 'The Pentagon', '★', 'DoD HQ');
+    // Example bases for each region with official code names and short history
+    addBase(38.876, -77.0164, 'The Pentagon', 'Joint', 'The Pentagon is the headquarters of the United States Department of Defense, located in Arlington, Virginia.');
+    addBase(35.139, -79.006, 'Liberty', 'Army', 'Liberty (formerly Fort Bragg) is one of the largest military installations in the world, home to airborne and special operations forces.');
+    addBase(31.1346, -97.7800, 'Cavazos', 'Army', 'Cavazos (formerly Fort Hood) is a major U.S. Army post in Texas, housing armored and aviation units.');
+    addBase(37.9, -85.956, 'Knox', 'Army', 'Knox is the primary training base for the U.S. Army\'s armored forces, located in Kentucky.');
+    addBase(39.108, -76.745, 'Meade', 'Army', 'Fort Meade hosts the NSA and U.S. Cyber Command, playing a crucial role in cyber warfare and intelligence.');
+    addBase(33.3, -117.3, 'Pendleton', 'Marines', 'Camp Pendleton is the major West Coast base of the U.S. Marine Corps in California.');
+    addBase(32.6831, -117.16, 'Miramar', 'Marines', 'MCAS Miramar serves Marine aviation and is known as "Fightertown USA".');
+    addBase(39.8262, -84.0611, 'Wright-Patterson', 'Air Force', 'Wright-Patterson AFB is a major Air Force base and center for research and development.');
+    addBase(38.8106, -77.1203, 'Anacostia-Bolling', 'Joint', 'Joint Base Anacostia–Bolling combines Air Force and Navy facilities near Washington D.C.');
+    addBase(36.945, -76.305, 'Norfolk', 'Navy', 'Naval Station Norfolk is the world\'s largest naval base and a hub for Atlantic fleet operations.');
+    addBase(47.11, -122.57, 'Lewis-McChord', 'Joint', 'Joint Base Lewis–McChord is a major Army and Air Force installation near Tacoma, Washington.');
+    addBase(24.628, 54.444, 'Al Dhafra', 'Air Force', 'Al Dhafra Air Base in UAE is a strategic U.S. Air Force base in the Middle East.');
+    addBase(35.8, 14.5, 'NSA Naples', 'Navy', 'Naval Support Activity Naples is a key U.S. naval base in Italy supporting Mediterranean operations.');
+    addBase(51.151, 7.071, 'Ramstein', 'Air Force', 'Ramstein Air Base in Germany is a major hub for U.S. Air Forces in Europe.');
+    addBase(4.0, 73.5, 'Camp Lemonnier', 'Special Ops', 'Camp Lemonnier is the primary U.S. military base in Africa, hosting special operations forces.');
+    addBase(42.733, 141.659, 'Misawa', 'Air Force', 'Misawa Air Base in Japan supports U.S. Air Force operations in the Pacific region.');
+    addBase(-15.383, 28.283, 'Guantanamo Bay', 'Navy', 'Naval Station Guantanamo Bay is a U.S. naval base in Cuba, known for its detention facilities.');
+    addBase(60.815, -147.855, 'Elmendorf-Richardson', 'Joint', 'Joint Base Elmendorf-Richardson combines Army and Air Force presence near Anchorage, Alaska.');
+    addBase(5.35, 100.28, 'Kedah', 'Classified', 'Classified operations reportedly occur here in Southeast Asia.');
 
+    // --------------------------
+    // LIVE FLIGHT TRACKING SETUP
+    // --------------------------
+
+    // Plane icon styled in cyan to match map for live flights
+    const planeIcon = L.icon({
+      iconUrl: 'https://cdn-icons-png.flaticon.com/512/8885/8885364.png',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+      popupAnchor: [0, -12]
+    });
+
+    // Store active plane markers by ICAO24 id
+    const planes = {};
+
+    async function fetchLiveFlights() {
+      try {
+        const response = await fetch('https://opensky-network.org/api/states/all');
+        if (!response.ok) throw new Error('Failed to fetch flight data');
+        const data = await response.json();
+
+        if (!data.states) return;
+
+        const currentPlaneIDs = new Set();
+
+        data.states.forEach(state => {
+          const [icao24, callsignRaw, origin_country, , , lon, lat, baro_altitude] = state;
+          if (lat === null || lon === null) return;
+
+          const callsign = callsignRaw ? callsignRaw.trim() : 'Unknown';
+
+          currentPlaneIDs.add(icao24);
+
+          if (planes[icao24]) {
+            // Update existing marker position and popup
+            planes[icao24].setLatLng([lat, lon]);
+            planes[icao24].setPopupContent(
+              `<b>${callsign}</b><br>Country: ${origin_country}<br>Altitude: ${Math.round(baro_altitude || 0)} m`
+            );
+          } else {
+            // Create new marker
+            const marker = L.marker([lat, lon], { icon: planeIcon })
+              .bindPopup(
+                `<b>${callsign}</b><br>Country: ${origin_country}<br>Altitude: ${Math.round(baro_altitude || 0)} m`
+              )
+              .addTo(map);
+            planes[icao24] = marker;
+          }
+        });
+
+        // Remove planes no longer in data
+        for (const id in planes) {
+          if (!currentPlaneIDs.has(id)) {
+            map.removeLayer(planes[id]);
+            delete planes[id];
+          }
+        }
+
+      } catch (err) {
+        console.error('Live flight data fetch error:', err);
+      }
+    }
+
+    // Initial fetch and periodic update every 15 seconds
+    fetchLiveFlights();
+    setInterval(fetchLiveFlights, 15000);
   </script>
 </body>
 </html>
