@@ -207,75 +207,88 @@
       popupAnchor: [0, -12]
     });
 
-    let planes = {};
-    let flightsInterval = null;
-    let planesActive = true;
+let planes = {};
+let flightsInterval = null;
+let planesActive = true;
 
-    async function fetchLiveFlights() {
-      if (!planesActive) return;
-      try {
-        const response = await fetch('https://opensky-network.org/api/states/all');
-        if (!response.ok) throw new Error('Failed to fetch flight data');
-        const data = await response.json();
-        if (!data.states) return;
+async function fetchLiveFlights() {
+  if (!planesActive) return;
+  try {
+    const response = await fetch('https://opensky-network.org/api/states/all');
+    if (!response.ok) throw new Error('Failed to fetch flight data');
+    const data = await response.json();
+    if (!data.states) return;
 
-        const currentPlaneIDs = new Set();
+    const currentPlaneIDs = new Set();
 
-        data.states.forEach(state => {
-          const [icao24, callsignRaw, origin_country, , , lon, lat, baro_altitude] = state;
-          if (lat === null || lon === null) return;
-          const callsign = callsignRaw ? callsignRaw.trim() : 'Unknown';
-          currentPlaneIDs.add(icao24);
+    data.states.forEach(state => {
+      const [icao24, callsignRaw, origin_country, , , lon, lat, baro_altitude] = state;
+      if (lat === null || lon === null) return;
+      const callsign = callsignRaw ? callsignRaw.trim() : 'Unknown';
+      currentPlaneIDs.add(icao24);
 
-          if (planes[icao24]) {
-            planes[icao24].setLatLng([lat, lon]);
-            planes[icao24].setPopupContent(
-              `<b>${callsign}</b><br>Country: ${origin_country}<br>Altitude: ${Math.round(baro_altitude || 0)} m`
-            );
-          } else {
-            const marker = L.marker([lat, lon], { icon: planeIcon })
-              .bindPopup(
-                `<b>${callsign}</b><br>Country: ${origin_country}<br>Altitude: ${Math.round(baro_altitude || 0)} m`
-              )
-              .addTo(map);
-            planes[icao24] = marker;
-          }
-        });
-
-        // Remove planes no longer in data
-        for (const id in planes) {
-          if (!currentPlaneIDs.has(id)) {
-            map.removeLayer(planes[id]);
-            delete planes[id];
-          }
-        }
-      } catch (err) {
-        console.error('Live flight data fetch error:', err);
-      }
-    }
-
-    flightsInterval = setInterval(fetchLiveFlights, 15000);
-    fetchLiveFlights();
-
-    const planeToggleBtn = document.getElementById('planeToggle');
-    planeToggleBtn.addEventListener('click', () => {
-      planesActive = !planesActive;
-      if (!planesActive) {
-        for (const id in planes) {
-          map.removeLayer(planes[id]);
-        }
-        planes = {};
-        clearInterval(flightsInterval);
-        flightsInterval = null;
-        planeToggleBtn.textContent = 'Planes OFF';
-        planeToggleBtn.style.color = '#ff5555';
+      if (planes[icao24]) {
+        planes[icao24].setLatLng([lat, lon]);
+        planes[icao24].setPopupContent(
+          `<b>${callsign}</b><br>Country: ${origin_country}<br>Altitude: ${Math.round(baro_altitude || 0)} m`
+        );
       } else {
-        fetchLiveFlights();
-        flightsInterval = setInterval(fetchLiveFlights, 15000);
-        planeToggleBtn.textContent = 'Planes ON';
-        planeToggleBtn.style.color = '#0ff';
+        const marker = L.marker([lat, lon], { icon: planeIcon })
+          .bindPopup(
+            `<b>${callsign}</b><br>Country: ${origin_country}<br>Altitude: ${Math.round(baro_altitude || 0)} m`
+          )
+          .addTo(map);
+        planes[icao24] = marker;
       }
     });
+
+    for (const id in planes) {
+      if (!currentPlaneIDs.has(id)) {
+        map.removeLayer(planes[id]);
+        delete planes[id];
+      }
+    }
+  } catch (err) {
+    console.error('Live flight data fetch error:', err);
+  }
+}
+
+function startFlightsInterval() {
+  if (flightsInterval) clearInterval(flightsInterval);
+  flightsInterval = setInterval(fetchLiveFlights, 15000);
+  fetchLiveFlights();
+}
+
+function stopFlightsInterval() {
+  if (flightsInterval) {
+    clearInterval(flightsInterval);
+    flightsInterval = null;
+  }
+  for (const id in planes) {
+    map.removeLayer(planes[id]);
+  }
+  planes = {};
+}
+
+const planeToggleBtn = document.getElementById('planeToggle');
+planeToggleBtn.addEventListener('click', () => {
+  planesActive = !planesActive;
+  if (planesActive) {
+    startFlightsInterval();
+    planeToggleBtn.textContent = 'Planes ON';
+    planeToggleBtn.style.color = '#0ff';
+    planeToggleBtn.classList.add('activeToggle');
+  } else {
+    stopFlightsInterval();
+    planeToggleBtn.textContent = 'Planes OFF';
+    planeToggleBtn.style.color = '#ff5555';
+    planeToggleBtn.classList.remove('activeToggle');
+  }
+});
+
+// Start on page load
+startFlightsInterval();
+
 
     // -- Triangulation & Ruler logic --
 
