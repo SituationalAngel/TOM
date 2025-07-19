@@ -59,43 +59,10 @@
     .leaflet-popup-tip {
       display: none; /* remove popup arrow for cleaner look */
     }
-
-    /* Info boxes for triangulation & ruler */
-    #infoBox, #angleBox, #rulerBox {
-      position: absolute;
-      background: rgba(0,0,0,0.75);
-      color: #0ff;
-      font-size: 14px;
-      padding: 8px 10px;
-      max-width: 320px;
-      pointer-events: none;
-      border-radius: 0;
-      z-index: 1000;
-      user-select: none;
-      font-family: monospace;
-      line-height: 1.2em;
-    }
-    #infoBox {
-      top: 10px;
-      left: 10px;
-    }
-    #angleBox {
-      top: 130px;
-      left: 10px;
-    }
-    #rulerBox {
-      bottom: 10px;
-      left: 10px;
-      max-width: 320px;
-    }
   </style>
 </head>
 <body>
   <div id="map"></div>
-
-  <div id="infoBox">Click 3 points to triangulate</div>
-  <div id="angleBox"></div>
-  <div id="rulerBox">Ruler: inactive</div>
 
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
   <script>
@@ -144,7 +111,7 @@
       marker.bindPopup(popupContent);
     }
 
-    // Bases - same as your list
+    // Example bases for each region with official code names and short history
     addBase(38.876, -77.0164, 'The Pentagon', 'Joint', 'The Pentagon is the headquarters of the United States Department of Defense, located in Arlington, Virginia.');
     addBase(35.139, -79.006, 'Liberty', 'Army', 'Liberty (formerly Fort Bragg) is one of the largest military installations in the world, home to airborne and special operations forces.');
     addBase(31.1346, -97.7800, 'Cavazos', 'Army', 'Cavazos (formerly Fort Hood) is a major U.S. Army post in Texas, housing armored and aviation units.');
@@ -231,130 +198,6 @@
     // Initial fetch and periodic update every 15 seconds
     fetchLiveFlights();
     setInterval(fetchLiveFlights, 15000);
-
-    // -------------------------------------
-    // TRIANGULATION & DISTANCE MEASUREMENT
-    // -------------------------------------
-
-    // Utility for distance in km (Haversine)
-    function distanceKm(latlng1, latlng2) {
-      const R = 6371;
-      const toRad = x => x * Math.PI / 180;
-      const dLat = toRad(latlng2.lat - latlng1.lat);
-      const dLon = toRad(latlng2.lng - latlng1.lng);
-      const lat1 = toRad(latlng1.lat);
-      const lat2 = toRad(latlng2.lat);
-
-      const a = Math.sin(dLat/2)**2 +
-                Math.sin(dLon/2)**2 * Math.cos(lat1) * Math.cos(lat2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    }
-
-    // Angle at point B between points A and C
-    function angleBetweenPoints(A, B, C) {
-      function toVector(p1, p2) {
-        return {x: p2.lng - p1.lng, y: p2.lat - p1.lat};
-      }
-      function dot(u,v) {
-        return u.x*v.x + u.y*v.y;
-      }
-      function magnitude(v) {
-        return Math.sqrt(v.x*v.x + v.y*v.y);
-      }
-      const BA = toVector(B, A);
-      const BC = toVector(B, C);
-      const cosAngle = dot(BA, BC) / (magnitude(BA) * magnitude(BC));
-      const angleRad = Math.acos(Math.min(Math.max(cosAngle, -1), 1));
-      return angleRad * (180 / Math.PI);
-    }
-
-    let triangPoints = [];
-    let triangMarkers = [];
-    let triangLines = [];
-
-    let rulerStart = null;
-    let rulerLine = null;
-
-    const infoBox = document.getElementById('infoBox');
-    const angleBox = document.getElementById('angleBox');
-    const rulerBox = document.getElementById('rulerBox');
-
-    function clearTriangulation() {
-      triangMarkers.forEach(m => map.removeLayer(m));
-      triangLines.forEach(l => map.removeLayer(l));
-      triangMarkers = [];
-      triangLines = [];
-      triangPoints = [];
-      infoBox.textContent = 'Click 3 points to triangulate';
-      angleBox.textContent = '';
-    }
-
-    function clearRuler() {
-      if(rulerLine) {
-        map.removeLayer(rulerLine);
-        rulerLine = null;
-      }
-      rulerStart = null;
-      rulerBox.textContent = 'Ruler: inactive';
-    }
-
-    function clearAll() {
-      clearTriangulation();
-      clearRuler();
-    }
-
-    function drawTriangLines() {
-      for(let i=0; i<triangPoints.length; i++) {
-        let next = (i+1) % triangPoints.length;
-        const line = L.polyline([triangPoints[i], triangPoints[next]], {color: '#0ff', weight: 2}).addTo(map);
-        triangLines.push(line);
-      }
-    }
-
-    function updateTriangInfo() {
-      if(triangPoints.length < 3) {
-        infoBox.textContent = `Click ${3 - triangPoints.length} more point(s) to triangulate`;
-        angleBox.textContent = '';
-        return;
-      }
-
-      const d12 = distanceKm(triangPoints[0], triangPoints[1]);
-      const d23 = distanceKm(triangPoints[1], triangPoints[2]);
-      const d31 = distanceKm(triangPoints[2], triangPoints[0]);
-
-      const a1 = angleBetweenPoints(triangPoints[1], triangPoints[0], triangPoints[2]);
-      const a2 = angleBetweenPoints(triangPoints[0], triangPoints[1], triangPoints[2]);
-      const a3 = angleBetweenPoints(triangPoints[0], triangPoints[2], triangPoints[1]);
-
-      infoBox.innerHTML = `<strong>Distances (km):</strong><br>
-        P1-P2: ${d12.toFixed(2)}<br>
-        P2-P3: ${d23.toFixed(2)}<br>
-        P3-P1: ${d31.toFixed(2)}`;
-
-      angleBox.innerHTML = `<strong>Angles (°):</strong><br>
-        At P1: ${a1.toFixed(1)}<br>
-        At P2: ${a2.toFixed(1)}<br>
-        At P3: ${a3.toFixed(1)}`;
-    }
-
-    function updateRulerLine(endLatLng) {
-      if(rulerLine) {
-        map.removeLayer(rulerLine);
-      }
-      if(rulerStart && endLatLng) {
-        rulerLine = L.polyline([rulerStart, endLatLng], {color: '#f00', weight: 3, dashArray: '8 6'}).addTo(map);
-        const dist = distanceKm(rulerStart, endLatLng);
-        rulerBox.textContent = `Ruler: ${dist.toFixed(3)} km`;
-      } else {
-        rulerBox.textContent = 'Ruler: inactive';
-      }
-    }
-
-    // Map click handler: triangulation first, then ruler
-    map.on('click', e => {
-      if(triangPoints.length < 3) {
-        // Add triangulation points
-        triangPoints.push(e.latlng);
-        const marker = L.circleMarker(e.latlng, {
-          radius: 
+  </script>
+</body>
+</html>
