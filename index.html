@@ -1,168 +1,113 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="utf-8" />
-  <title>Black Site Command Interface</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <meta charset="utf-8"/>
+  <title>U.S. Military Base Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
   <style>
-    html, body, #map {
-      height: 100%;
-      margin: 0;
-      background: #000;
-      font-family: monospace;
-    }
-    .leaflet-container { background: #111; }
-
+    html, body, #map { height: 100%; margin: 0; }
+    .leaflet-container { font-family: monospace; background: #1a1a1a; }
     .military-label {
       font-size: 12px;
-      background: rgba(0,0,0,0.8);
-      padding: 4px 6px;
+      background: rgba(0,0,0,0.6);
+      padding: 2px 4px;
       border-radius: 3px;
-      color: #00ffcc;
-      border: 1px solid #00ffcc33;
+      color: #fff;
     }
-
     .zoom-home {
-      background: rgba(0, 0, 0, 0.85);
-      color: #00ffcc;
-      font-size: 18px;
-      padding: 4px 6px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      font-size: 16px;
+      line-height: 20px;
+      padding: 4px;
       border-radius: 4px;
       cursor: pointer;
-      text-align: center;
-      box-shadow: 0 0 3px #00ffcc99;
+    }
+    /* Hide leaflet attribution badge */
+    .leaflet-control-attribution {
+      display: none !important;
     }
 
-    .sys-bar {
-      position: absolute;
-      bottom: 0;
-      left: 0;
+    /* Terminal loading screen */
+    #terminal-loader {
+      position: fixed;
+      top: 0; left: 0;
       width: 100%;
-      background: rgba(0,0,0,0.9);
+      height: 100%;
+      background: #000;
       color: #00ffcc;
-      padding: 6px 12px;
-      font-size: 12px;
+      font-family: monospace;
       display: flex;
-      justify-content: space-between;
-      border-top: 1px solid #00ffcc22;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      transition: opacity 1s ease;
     }
 
-    .log-box {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      width: 300px;
-      background: rgba(0, 0, 0, 0.9);
-      color: #ccc;
-      font-size: 12px;
-      padding: 8px;
-      border-radius: 5px;
-      max-height: 220px;
-      overflow-y: auto;
-      box-shadow: 0 0 6px #00ffcc44;
-    }
-
-    .log-title {
-      color: #00ffcc;
-      font-weight: bold;
-      margin-bottom: 6px;
-    }
-
-    a {
-      color: #00ffcc;
-      text-decoration: none;
+    .terminal-screen {
+      background: #000;
+      border: 1px solid #00ffcc33;
+      padding: 20px;
+      box-shadow: 0 0 12px #00ffcc44;
+      font-size: 14px;
+      line-height: 1.6;
     }
   </style>
 </head>
 <body>
-<div id="map"></div>
+  <!-- Terminal Loading Overlay -->
+  <div id="terminal-loader">
+    <div class="terminal-screen">
+      <div>> Initializing Black Site Interface...</div>
+      <div>> Establishing satellite uplink...</div>
+      <div>> Fetching coordinates...</div>
+      <div>> Plotting assets on global map...</div>
+      <div>> [OK] Map system online.</div>
+    </div>
+  </div>
 
-<div class="log-box" id="event-log">
-  <div class="log-title">Event Log</div>
-  <div>> Initializing map...</div>
-</div>
+  <div id="map"></div>
 
-<div class="sys-bar">
-  <span id="status-time">System Online: --:--:--</span>
-  <a href="https://globe.adsbexchange.com" target="_blank">Live Military Flights ↗</a>
-</div>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map', {
+      center: [39.5, -98.35], // Geographic center of contiguous U.S.
+      zoom: 5,
+      zoomControl: true
+    });
 
-<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-<script>
-  const map = L.map('map', {
-    center: [39.5, -98.35],
-    zoom: 5,
-    zoomControl: true
-  });
-
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© CartoDB | OpenStreetMap',
-    subdomains: 'abcd',
-    maxZoom: 19
-  }).addTo(map);
-
-  const radarLayer = L.tileLayer('https://tilecache.rainviewer.com/v2/radar/nowcast/0/512/{z}/{x}/{y}/2/1_1.png', {
-    attribution: 'RainViewer',
-    opacity: 0.3,
-    zIndex: 999
-  }).addTo(map);
-
-  const homeCoords = [39.5, -98.35];
-  L.control({ position: 'topright' }).onAdd = function() {
-    const div = L.DomUtil.create('div', 'zoom-home');
-    div.innerHTML = '🏠';
-    div.title = 'Reset View';
-    div.onclick = () => map.setView(homeCoords, 5);
-    return div;
-  }.addTo(map);
-
-  function addBase(lat, lng, name, symbol, branch) {
-    L.marker([lat, lng], {
-      icon: L.divIcon({
-        className: 'military-label',
-        html: `<span>${symbol} ${name}<br><span style="font-size:10px;opacity:0.6">${branch}</span></span>`,
-        iconSize: [120, 35],
-        iconAnchor: [60, 15]
-      })
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd',
+      maxZoom: 19
     }).addTo(map);
-    log(`Loaded: ${name} (${branch})`);
-  }
 
-  function log(msg) {
-    const logBox = document.getElementById('event-log');
-    const time = new Date().toLocaleTimeString();
-    logBox.innerHTML += `<div>> [${time}] ${msg}</div>`;
-    logBox.scrollTop = logBox.scrollHeight;
-  }
+    // Zoom home button
+    const homeCoords = [39.5, -98.35];
+    const zoomHome = L.control({ position: 'topright' });
+    zoomHome.onAdd = function() {
+      const div = L.DomUtil.create('div', 'zoom-home');
+      div.innerHTML = '🏠';
+      div.title = 'Reset View';
+      div.onclick = () => map.setView(homeCoords, 5);
+      return div;
+    };
+    zoomHome.addTo(map);
 
-  setInterval(() => {
-    const now = new Date();
-    document.getElementById('status-time').textContent = `System Online: ${now.toLocaleTimeString()}`;
-  }, 1000);
+    // Add base with a custom symbol
+    function addBase(lat, lng, name, symbol, branch) {
+      L.marker([lat, lng], {
+        icon: L.divIcon({
+          className: 'military-label',
+          html: `<span>${symbol} ${name}<br><span style="font-size:10px;opacity:0.6">${branch}</span></span>`,
+          iconSize: [100, 30],
+          iconAnchor: [50, 15]
+        })
+      }).addTo(map);
+    }
 
-  // Real military installations (more added)
-  const bases = [
-    [35.139, -79.006, 'Fort Liberty', '★', 'Army'],
-    [31.1346, -97.7800, 'Fort Cavazos', '★', 'Army'],
-    [37.9, -85.956, 'Fort Knox', '★', 'Army'],
-    [39.108, -76.745, 'Fort Meade', '★', 'Army / NSA'],
-    [33.3, -117.3, 'Camp Pendleton', '🪖', 'Marines'],
-    [32.6831, -117.16, 'MCAS Miramar', '✈', 'Marines / Navy'],
-    [39.8262, -84.0611, 'Wright-Patterson AFB', '✈', 'Air Force'],
-    [36.945, -76.305, 'Naval Station Norfolk', '⚓', 'Navy'],
-    [47.11, -122.57, 'Lewis–McChord', '★', 'Army / Air Force'],
-    [38.876, -77.0164, 'The Pentagon', '★', 'DoD HQ'],
-    [30.4213, -87.2169, 'NAS Pensacola', '⚓', 'Navy'],
-    [32.3801, -86.345, 'Maxwell AFB', '✈', 'Air Force'],
-    [29.3572, -98.5811, 'Lackland AFB', '✈', 'Air Force'],
-    [34.629, -86.684, 'Redstone Arsenal', '⚙', 'Army / DoD'],
-    [38.4106, -75.0, 'Wallops Flight Facility', '🚀', 'NASA / DoD'],
-    [37.1319, -76.4922, 'Langley AFB', '✈', 'Air Force'],
-    [35.686975, -117.686403, 'China Lake', '💣', 'Navy / Weapons Dev']
-  ];
-
-  bases.forEach(([lat, lng, name, symbol, branch]) => addBase(lat, lng, name, symbol, branch));
-</script>
-</body>
-</html>
+    // Real U.S. Military Bases
+    addBase(35.139, -79.006, 'Fort Liberty', '★', 'Army');
+    addBase(31.1346, -97.7800, 'Fort Cavazos', '★', 'Army');
+    addBase(37.9, -85.956, 'Fort Knox', '★', 'Army');
+    addBase(39
