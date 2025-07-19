@@ -24,49 +24,9 @@
       border-radius: 4px;
       cursor: pointer;
     }
-    /* Hide leaflet attribution badge */
-    .leaflet-control-attribution {
-      display: none !important;
-    }
-
-    /* Terminal loading screen */
-    #terminal-loader {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
-      background: #000;
-      color: #00ffcc;
-      font-family: monospace;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-      transition: opacity 1s ease;
-    }
-
-    .terminal-screen {
-      background: #000;
-      border: 1px solid #00ffcc33;
-      padding: 20px;
-      box-shadow: 0 0 12px #00ffcc44;
-      font-size: 14px;
-      line-height: 1.6;
-    }
   </style>
 </head>
 <body>
-  <!-- Terminal Loading Overlay -->
-  <div id="terminal-loader">
-    <div class="terminal-screen">
-      <div>> Initializing Black Site Interface...</div>
-      <div>> Establishing satellite uplink...</div>
-      <div>> Fetching coordinates...</div>
-      <div>> Plotting assets on global map...</div>
-      <div>> [OK] Map system online.</div>
-    </div>
-  </div>
-
   <div id="map"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
@@ -78,6 +38,7 @@
     });
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; CARTO',
       subdomains: 'abcd',
       maxZoom: 19
     }).addTo(map);
@@ -106,8 +67,19 @@
       }).addTo(map);
     }
 
-    // Real U.S. Military Bases
-    addBase(35.139, -79.006, 'Fort Liberty', '★', 'Army');
-    addBase(31.1346, -97.7800, 'Fort Cavazos', '★', 'Army');
+    // Real U.S. Military Bases (simplified, across all major branches)
+    addBase(35.139, -79.006, 'Fort Liberty', '★', 'Army'); // Formerly Fort Bragg
+    addBase(31.1346, -97.7800, 'Fort Cavazos', '★', 'Army'); // Formerly Fort Hood
     addBase(37.9, -85.956, 'Fort Knox', '★', 'Army');
-    addBase(39
+    addBase(39.108, -76.745, 'Fort Meade', '★', 'Army / NSA');
+    addBase(33.3, -117.3, 'Camp Pendleton', '🪖', 'Marines');
+    addBase(32.6831, -117.16, 'MCAS Miramar', '✈', 'Marines / Navy');
+    addBase(39.8262, -84.0611, 'Wright-Patterson AFB', '✈', 'Air Force');
+    addBase(38.8106, -77.1203, 'Joint Base Anacostia–Bolling', '✈', 'Air Force / Navy');
+    addBase(36.945, -76.305, 'Naval Station Norfolk', '⚓', 'Navy');
+    addBase(47.11, -122.57, 'Joint Base Lewis–McChord', '★', 'Army / Air Force');
+    addBase(38.876, -77.0164, 'The Pentagon', '★', 'DoD HQ');
+
+  </script>
+</body>
+</html>
