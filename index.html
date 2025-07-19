@@ -29,6 +29,7 @@
       text-overflow: ellipsis;
       cursor: pointer;
       user-select: none;
+      /* No border-radius */
     }
 
     .zoom-home {
@@ -39,6 +40,7 @@
       padding: 4px;
       cursor: pointer;
       user-select: none;
+      /* No border-radius */
     }
 
     /* Remove rounded corners & border from Leaflet popups */
@@ -48,13 +50,14 @@
       font-family: monospace;
       font-size: 12px;
       padding: 8px;
+      /* NO border-radius */
       border-radius: 0 !important;
       border: none !important;
       box-shadow: none !important;
     }
 
     .leaflet-popup-tip {
-      display: none;
+      display: none; /* remove popup arrow for cleaner look */
     }
 
     /* Info boxes for triangulation & ruler */
@@ -73,7 +76,7 @@
       line-height: 1.2em;
     }
     #infoBox {
-      top: 50px;
+      top: 10px;
       left: 10px;
     }
     #angleBox {
@@ -85,54 +88,10 @@
       left: 10px;
       max-width: 320px;
     }
-
-    /* Toggle buttons */
-    #planeToggle, #triangToggle, #rulerToggle {
-      position: absolute;
-      background: rgba(0,0,0,0.75);
-      color: #0ff;
-      font-family: monospace;
-      padding: 8px 14px;
-      cursor: pointer;
-      user-select: none;
-      font-size: 14px;
-      border: none;
-      outline: none;
-      z-index: 1100;
-      transition: background 0.3s ease;
-      border-radius: 0;
-    }
-    #planeToggle {
-      top: 10px;
-      right: 10px;
-    }
-    #triangToggle {
-      top: 10px;
-      left: 10px;
-    }
-    #rulerToggle {
-      top: 50px;
-      left: 10px;
-    }
-
-    #planeToggle:hover, #triangToggle:hover, #rulerToggle:hover {
-      background: rgba(0,255,255,0.15);
-    }
-
-    /* Active button highlight */
-    .activeToggle {
-      background: #00ffff;
-      color: #000;
-      font-weight: bold;
-    }
   </style>
 </head>
 <body>
   <div id="map"></div>
-
-  <button id="planeToggle" class="activeToggle">Planes ON</button>
-  <button id="triangToggle">Triangulate OFF</button>
-  <button id="rulerToggle">Ruler OFF</button>
 
   <div id="infoBox">Click 3 points to triangulate</div>
   <div id="angleBox"></div>
@@ -141,17 +100,19 @@
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
   <script>
     const map = L.map('map', {
-      center: [39.5, -98.35],
+      center: [39.5, -98.35], // Center US
       zoom: 3,
       zoomControl: true
     });
 
+    // Dark base map
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; CARTO',
       subdomains: 'abcd',
       maxZoom: 19
     }).addTo(map);
 
+    // Helper: color by branch
     const branchColors = {
       'Army': '#00ffff',
       'Marines': '#ff4500',
@@ -162,10 +123,13 @@
       'Joint': '#00ffff'
     };
 
+    // Use plane emoji for all bases
     const baseSymbol = '✈';
 
+    // Add base with official code name and popup history
     function addBase(lat, lng, codeName, branch, history) {
       const color = branchColors[branch] || '#ccc';
+
       const marker = L.marker([lat, lng], {
         icon: L.divIcon({
           className: 'military-label',
@@ -174,11 +138,13 @@
           iconAnchor: [55, 15]
         })
       }).addTo(map);
+
       const popupContent = `<strong>${codeName}</strong><br><em>${branch}</em><br><br>${history}`;
+
       marker.bindPopup(popupContent);
     }
 
-    // Bases
+    // Bases - same as your list
     addBase(38.876, -77.0164, 'The Pentagon', 'Joint', 'The Pentagon is the headquarters of the United States Department of Defense, located in Arlington, Virginia.');
     addBase(35.139, -79.006, 'Liberty', 'Army', 'Liberty (formerly Fort Bragg) is one of the largest military installations in the world, home to airborne and special operations forces.');
     addBase(31.1346, -97.7800, 'Cavazos', 'Army', 'Cavazos (formerly Fort Hood) is a major U.S. Army post in Texas, housing armored and aviation units.');
@@ -199,7 +165,11 @@
     addBase(60.815, -147.855, 'Elmendorf-Richardson', 'Joint', 'Joint Base Elmendorf-Richardson combines Army and Air Force presence near Anchorage, Alaska.');
     addBase(5.35, 100.28, 'Kedah', 'Classified', 'Classified operations reportedly occur here in Southeast Asia.');
 
-    // Live Flight Tracking
+    // --------------------------
+    // LIVE FLIGHT TRACKING SETUP
+    // --------------------------
+
+    // Plane icon styled in cyan to match map for live flights
     const planeIcon = L.icon({
       iconUrl: 'https://cdn-icons-png.flaticon.com/512/1783/1783356.png',
       iconSize: [24, 24],
@@ -207,91 +177,66 @@
       popupAnchor: [0, -12]
     });
 
-let planes = {};
-let flightsInterval = null;
-let planesActive = true;
+    // Store active plane markers by ICAO24 id
+    const planes = {};
 
-async function fetchLiveFlights() {
-  if (!planesActive) return;
-  try {
-    const response = await fetch('https://opensky-network.org/api/states/all');
-    if (!response.ok) throw new Error('Failed to fetch flight data');
-    const data = await response.json();
-    if (!data.states) return;
+    async function fetchLiveFlights() {
+      try {
+        const response = await fetch('https://opensky-network.org/api/states/all');
+        if (!response.ok) throw new Error('Failed to fetch flight data');
+        const data = await response.json();
 
-    const currentPlaneIDs = new Set();
+        if (!data.states) return;
 
-    data.states.forEach(state => {
-      const [icao24, callsignRaw, origin_country, , , lon, lat, baro_altitude] = state;
-      if (lat === null || lon === null) return;
-      const callsign = callsignRaw ? callsignRaw.trim() : 'Unknown';
-      currentPlaneIDs.add(icao24);
+        const currentPlaneIDs = new Set();
 
-      if (planes[icao24]) {
-        planes[icao24].setLatLng([lat, lon]);
-        planes[icao24].setPopupContent(
-          `<b>${callsign}</b><br>Country: ${origin_country}<br>Altitude: ${Math.round(baro_altitude || 0)} m`
-        );
-      } else {
-        const marker = L.marker([lat, lon], { icon: planeIcon })
-          .bindPopup(
-            `<b>${callsign}</b><br>Country: ${origin_country}<br>Altitude: ${Math.round(baro_altitude || 0)} m`
-          )
-          .addTo(map);
-        planes[icao24] = marker;
-      }
-    });
+        data.states.forEach(state => {
+          const [icao24, callsignRaw, origin_country, , , lon, lat, baro_altitude] = state;
+          if (lat === null || lon === null) return;
 
-    for (const id in planes) {
-      if (!currentPlaneIDs.has(id)) {
-        map.removeLayer(planes[id]);
-        delete planes[id];
+          const callsign = callsignRaw ? callsignRaw.trim() : 'Unknown';
+
+          currentPlaneIDs.add(icao24);
+
+          if (planes[icao24]) {
+            // Update existing marker position and popup
+            planes[icao24].setLatLng([lat, lon]);
+            planes[icao24].setPopupContent(
+              `<b>${callsign}</b><br>Country: ${origin_country}<br>Altitude: ${Math.round(baro_altitude || 0)} m`
+            );
+          } else {
+            // Create new marker
+            const marker = L.marker([lat, lon], { icon: planeIcon })
+              .bindPopup(
+                `<b>${callsign}</b><br>Country: ${origin_country}<br>Altitude: ${Math.round(baro_altitude || 0)} m`
+              )
+              .addTo(map);
+            planes[icao24] = marker;
+          }
+        });
+
+        // Remove planes no longer in data
+        for (const id in planes) {
+          if (!currentPlaneIDs.has(id)) {
+            map.removeLayer(planes[id]);
+            delete planes[id];
+          }
+        }
+
+      } catch (err) {
+        console.error('Live flight data fetch error:', err);
       }
     }
-  } catch (err) {
-    console.error('Live flight data fetch error:', err);
-  }
-}
 
-function startFlightsInterval() {
-  if (flightsInterval) clearInterval(flightsInterval);
-  flightsInterval = setInterval(fetchLiveFlights, 15000);
-  fetchLiveFlights();
-}
+    // Initial fetch and periodic update every 15 seconds
+    fetchLiveFlights();
+    setInterval(fetchLiveFlights, 15000);
 
-function stopFlightsInterval() {
-  if (flightsInterval) {
-    clearInterval(flightsInterval);
-    flightsInterval = null;
-  }
-  for (const id in planes) {
-    map.removeLayer(planes[id]);
-  }
-  planes = {};
-}
+    // -------------------------------------
+    // TRIANGULATION & DISTANCE MEASUREMENT
+    // -------------------------------------
 
-const planeToggleBtn = document.getElementById('planeToggle');
-planeToggleBtn.addEventListener('click', () => {
-  planesActive = !planesActive;
-  if (planesActive) {
-    startFlightsInterval();
-    planeToggleBtn.textContent = 'Planes ON';
-    planeToggleBtn.style.color = '#0ff';
-    planeToggleBtn.classList.add('activeToggle');
-  } else {
-    stopFlightsInterval();
-    planeToggleBtn.textContent = 'Planes OFF';
-    planeToggleBtn.style.color = '#ff5555';
-    planeToggleBtn.classList.remove('activeToggle');
-  }
-});
-
-// Start on page load
-startFlightsInterval();
-
-
-    // -- Triangulation & Ruler logic --
-
+    // Utility for distance in km (Haversine)
     function distanceKm(latlng1, latlng2) {
       const R = 6371;
       const toRad = x => x * Math.PI / 180;
@@ -299,11 +244,14 @@ startFlightsInterval();
       const dLon = toRad(latlng2.lng - latlng1.lng);
       const lat1 = toRad(latlng1.lat);
       const lat2 = toRad(latlng2.lat);
-      const a = Math.sin(dLat/2)**2 + Math.sin(dLon/2)**2 * Math.cos(lat1) * Math.cos(lat2);
+
+      const a = Math.sin(dLat/2)**2 +
+                Math.sin(dLon/2)**2 * Math.cos(lat1) * Math.cos(lat2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     }
 
+    // Angle at point B between points A and C
     function angleBetweenPoints(A, B, C) {
       function toVector(p1, p2) {
         return {x: p2.lng - p1.lng, y: p2.lat - p1.lat};
@@ -332,9 +280,6 @@ startFlightsInterval();
     const angleBox = document.getElementById('angleBox');
     const rulerBox = document.getElementById('rulerBox');
 
-    let triangulateActive = false;
-    let rulerActive = false;
-
     function clearTriangulation() {
       triangMarkers.forEach(m => map.removeLayer(m));
       triangLines.forEach(l => map.removeLayer(l));
@@ -360,161 +305,56 @@ startFlightsInterval();
     }
 
     function drawTriangLines() {
-      for(let line of triangLines) {
-        map.removeLayer(line);
+      for(let i=0; i<triangPoints.length; i++) {
+        let next = (i+1) % triangPoints.length;
+        const line = L.polyline([triangPoints[i], triangPoints[next]], {color: '#0ff', weight: 2}).addTo(map);
+        triangLines.push(line);
       }
-      triangLines = [];
-
-      const [p1, p2, p3] = triangPoints;
-
-      // Draw triangle edges
-      triangLines.push(L.polyline([p1, p2], {color: '#0ff'}).addTo(map));
-      triangLines.push(L.polyline([p2, p3], {color: '#0ff'}).addTo(map));
-      triangLines.push(L.polyline([p3, p1], {color: '#0ff'}).addTo(map));
     }
 
     function updateTriangInfo() {
-      if(triangPoints.length !== 3) return;
-
-      const [p1, p2, p3] = triangPoints;
-
-      // Distances (km)
-      const d12 = distanceKm(p1, p2).toFixed(2);
-      const d23 = distanceKm(p2, p3).toFixed(2);
-      const d31 = distanceKm(p3, p1).toFixed(2);
-
-      // Angles (degrees)
-      const angle1 = angleBetweenPoints(p2, p1, p3).toFixed(1);
-      const angle2 = angleBetweenPoints(p1, p2, p3).toFixed(1);
-      const angle3 = angleBetweenPoints(p1, p3, p2).toFixed(1);
-
-      infoBox.innerHTML = `
-        <b>Triangle Sides (km):</b><br>
-        P1-P2: ${d12}<br>
-        P2-P3: ${d23}<br>
-        P3-P1: ${d31}
-      `;
-      angleBox.innerHTML = `
-        <b>Triangle Angles (°):</b><br>
-        ∠P1: ${angle1}<br>
-        ∠P2: ${angle2}<br>
-        ∠P3: ${angle3}
-      `;
-    }
-
-    function updateRulerLine(latlng) {
-      if(!rulerStart) return;
-
-      if(rulerLine) {
-        rulerLine.setLatLngs([rulerStart, latlng]);
-      } else {
-        rulerLine = L.polyline([rulerStart, latlng], {color: '#0ff', dashArray: '5,10'}).addTo(map);
+      if(triangPoints.length < 3) {
+        infoBox.textContent = `Click ${3 - triangPoints.length} more point(s) to triangulate`;
+        angleBox.textContent = '';
+        return;
       }
 
-      const dist = distanceKm(rulerStart, latlng).toFixed(2);
-      rulerBox.textContent = `Ruler: ${dist} km`;
+      const d12 = distanceKm(triangPoints[0], triangPoints[1]);
+      const d23 = distanceKm(triangPoints[1], triangPoints[2]);
+      const d31 = distanceKm(triangPoints[2], triangPoints[0]);
+
+      const a1 = angleBetweenPoints(triangPoints[1], triangPoints[0], triangPoints[2]);
+      const a2 = angleBetweenPoints(triangPoints[0], triangPoints[1], triangPoints[2]);
+      const a3 = angleBetweenPoints(triangPoints[0], triangPoints[2], triangPoints[1]);
+
+      infoBox.innerHTML = `<strong>Distances (km):</strong><br>
+        P1-P2: ${d12.toFixed(2)}<br>
+        P2-P3: ${d23.toFixed(2)}<br>
+        P3-P1: ${d31.toFixed(2)}`;
+
+      angleBox.innerHTML = `<strong>Angles (°):</strong><br>
+        At P1: ${a1.toFixed(1)}<br>
+        At P2: ${a2.toFixed(1)}<br>
+        At P3: ${a3.toFixed(1)}`;
     }
 
-    // Map click handler
+    function updateRulerLine(endLatLng) {
+      if(rulerLine) {
+        map.removeLayer(rulerLine);
+      }
+      if(rulerStart && endLatLng) {
+        rulerLine = L.polyline([rulerStart, endLatLng], {color: '#f00', weight: 3, dashArray: '8 6'}).addTo(map);
+        const dist = distanceKm(rulerStart, endLatLng);
+        rulerBox.textContent = `Ruler: ${dist.toFixed(3)} km`;
+      } else {
+        rulerBox.textContent = 'Ruler: inactive';
+      }
+    }
+
+    // Map click handler: triangulation first, then ruler
     map.on('click', e => {
-      if(triangulateActive) {
-        if(triangPoints.length === 3) {
-          clearTriangulation();
-        }
+      if(triangPoints.length < 3) {
+        // Add triangulation points
         triangPoints.push(e.latlng);
         const marker = L.circleMarker(e.latlng, {
-          radius: 7,
-          color: '#0ff',
-          weight: 2,
-          fillColor: '#0ff',
-          fillOpacity: 0.7
-        }).addTo(map);
-        triangMarkers.push(marker);
-
-        if(triangPoints.length === 3) {
-          drawTriangLines();
-          updateTriangInfo();
-        } else {
-          infoBox.textContent = `Click ${3 - triangPoints.length} more point(s) to triangulate`;
-          angleBox.textContent = '';
-        }
-
-        // Reset ruler if active
-        if(rulerActive) {
-          clearRuler();
-          rulerActive = false;
-          updateButtons();
-        }
-
-      } else if(rulerActive) {
-        if(!rulerStart) {
-          rulerStart = e.latlng;
-          rulerBox.textContent = 'Ruler: click another point to measure distance';
-          updateRulerLine(e.latlng);
-        } else {
-          updateRulerLine(e.latlng);
-          rulerStart = null;
-        }
-
-        // Reset triang if active
-        if(triangulateActive) {
-          clearTriangulation();
-          triangulateActive = false;
-          updateButtons();
-        }
-
-      } else {
-        // Neither mode active, do nothing
-      }
-    });
-
-    // Update buttons UI
-    function updateButtons() {
-      planeToggleBtn.classList.toggle('activeToggle', planesActive);
-      triangToggleBtn.classList.toggle('activeToggle', triangulateActive);
-      rulerToggleBtn.classList.toggle('activeToggle', rulerActive);
-
-      triangToggleBtn.textContent = triangulateActive ? 'Triangulate ON' : 'Triangulate OFF';
-      rulerToggleBtn.textContent = rulerActive ? 'Ruler ON' : 'Ruler OFF';
-    }
-
-    // Toggle buttons handlers
-    const triangToggleBtn = document.getElementById('triangToggle');
-    const rulerToggleBtn = document.getElementById('rulerToggle');
-
-    triangToggleBtn.addEventListener('click', () => {
-      if(triangulateActive) {
-        clearTriangulation();
-        triangulateActive = false;
-      } else {
-        triangulateActive = true;
-        rulerActive = false;
-        clearRuler();
-      }
-      updateButtons();
-    });
-
-    rulerToggleBtn.addEventListener('click', () => {
-      if(rulerActive) {
-        clearRuler();
-        rulerActive = false;
-      } else {
-        rulerActive = true;
-        triangulateActive = false;
-        clearTriangulation();
-      }
-      updateButtons();
-    });
-
-    // Reset all on 'r' key
-    document.addEventListener('keydown', e => {
-      if(e.key.toLowerCase() === 'r') {
-        clearAll();
-      }
-    });
-
-    updateButtons();
-
-  </script>
-</body>
-</html>
+          radius: 
